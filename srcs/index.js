@@ -8,9 +8,8 @@ const { registerDailyReport } = require('./jobs/dailyReport');
 const app = new App({
 	token: process.env.SLACK_BOT_TOKEN,
 	signingSecret: process.env.SIGNING_SECRET,
-	socketMode: true,
-	appToken: process.env.SLACK_APP_TOKEN,
-	appId: process.env.APP_ID
+	appId: process.env.APP_ID,
+	port: process.env.PORT || 3000,
 });
 
 registerListeners(app);
