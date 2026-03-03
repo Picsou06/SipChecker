@@ -1,0 +1,28 @@
+const SIP_EMOJI = process.env.SIP_EMOJI;
+
+module.exports = {
+	close: 'Sluiten',
+
+	sip: {
+		titleSelf: 'Mijn Sips',
+		titleOther: (name) => `${name} Sips`,
+		firstSipSelf: (time) => `Je hebt vandaag voor het eerst gedronken om ${time} :${SIP_EMOJI}:`,
+		firstSipOther: (ref, time) => `${ref} heeft vandaag voor het eerst gedronken om ${time} :${SIP_EMOJI}:`,
+		noSipSelf: () => 'Je hebt vandaag nog niets gedronken 🫗',
+		noSipOther: (ref) => `${ref} heeft vandaag nog niets gedronken 🫗`,
+		labelMessages: '*Drankjes (berichten)*',
+		labelReactions: '*Aanmoedigingen (reacties)*',
+		total: (n) => `Totaal vandaag: *${n}*`,
+	},
+
+	leaderboard: {
+		titleDay: 'Sips van vandaag',
+		titleStats: 'Alle Sips',
+		labelMessages: '*Drankjes (berichten)*',
+		labelReactions: '*Aanmoedigingen (reacties)*',
+		top3Header: '*Top 3*',
+		noSips: '_Nog geen drankjes geregistreerd._',
+		topEntry: (medal, ref, total, msg, react) =>
+			`${medal} ${ref} - *${total}*  _(${msg} drankjes · ${react} aanmoedigingen)_`,
+	},
+};

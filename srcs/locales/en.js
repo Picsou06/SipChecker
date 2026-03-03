@@ -1,0 +1,28 @@
+const SIP_EMOJI = process.env.SIP_EMOJI;
+
+module.exports = {
+	close: 'Close',
+
+	sip: {
+		titleSelf: 'Your Sips',
+		titleOther: (name) => `${name} Sips`,
+		firstSipSelf: (time) => `You had your first drink today at ${time} :${SIP_EMOJI}:`,
+		firstSipOther: (ref, time) => `${ref} had their first drink today at ${time} :${SIP_EMOJI}:`,
+		noSipSelf: () => "You haven't had a drink today 🫗",
+		noSipOther: (ref) => `${ref} hasn't had a drink today 🫗`,
+		labelMessages: '*Drinks (messages)*',
+		labelReactions: '*Encouragements (reactions)*',
+		total: (n) => `Total today: *${n}*`,
+	},
+
+	leaderboard: {
+		titleDay: "Today's Sips",
+		titleStats: 'All-time Sips',
+		labelMessages: '*Drinks (messages)*',
+		labelReactions: '*Encouragements (reactions)*',
+		top3Header: '*Top 3*',
+		noSips: '_No drinks recorded yet._',
+		topEntry: (medal, ref, total, msg, react) =>
+			`${medal} ${ref} - *${total}*  _(${msg} drinks · ${react} encouragements)_`,
+	},
+};

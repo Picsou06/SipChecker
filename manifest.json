@@ -1,0 +1,60 @@
+{
+  "display_information": {
+    "name": "SipChecker",
+    "description": "Hydration monitors for #world-random to verify and track hydration habits (https://42born2code.slack.com/docs/T039P7U66/F09QAMF1CJG)",
+    "background_color": "#FF8DA1",
+    "long_description": "Your friendly hydration stalker. Your every sip is logged, analyzed, and judged. Forget privacy. Did you drink water today? We're watching. We're always watching. Join the hydration cult! Warning: May cause existential dread about your water intake."
+  },
+  "features": {
+    "bot_user": {
+      "display_name": "SipChecker",
+      "always_online": true
+    },
+    "slash_commands": [
+      {
+        "command": "/sip",
+        "description": "Check sip information for a user",
+        "usage_hint": "[@username]",
+        "should_escape": true
+      },
+      {
+        "command": "/sip-stats",
+        "description": "Display global hydration statistics for all users",
+        "should_escape": false
+      },
+      {
+        "command": "/sip-day",
+        "description": "Show today's global hydration statistics",
+        "should_escape": false
+      }
+    ]
+  },
+  "oauth_config": {
+    "scopes": {
+      "bot": [
+        "channels:read",
+        "channels:history",
+        "channels:join",
+        "commands",
+        "users:read",
+        "reactions:read",
+        "canvases:read",
+        "canvases:write"
+      ]
+    }
+  },
+  "settings": {
+    "event_subscriptions": {
+      "bot_events": [
+        "message.channels",
+        "reaction_added"
+      ]
+    },
+    "interactivity": {
+      "is_enabled": true
+    },
+    "org_deploy_enabled": false,
+    "socket_mode_enabled": true,
+    "token_rotation_enabled": false
+  }
+}
