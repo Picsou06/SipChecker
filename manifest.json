@@ -13,17 +13,20 @@
     "slash_commands": [
       {
         "command": "/sip",
+        "url": "https://picsou06.fr/slack/events",
         "description": "Check sip information for a user",
         "usage_hint": "[@username]",
         "should_escape": true
       },
       {
         "command": "/sip-stats",
+        "url": "https://picsou06.fr/slack/events",
         "description": "Display global hydration statistics for all users",
         "should_escape": false
       },
       {
         "command": "/sip-day",
+        "url": "https://picsou06.fr/slack/events",
         "description": "Show today's global hydration statistics",
         "should_escape": false
       }
@@ -45,13 +48,15 @@
   },
   "settings": {
     "event_subscriptions": {
+      "request_url": "https://picsou06.fr/slack/events",
       "bot_events": [
         "message.channels",
         "reaction_added"
       ]
     },
     "interactivity": {
-      "is_enabled": true
+      "is_enabled": true,
+      "request_url": "https://picsou06.fr/slack/events"
     },
     "org_deploy_enabled": false,
     "socket_mode_enabled": false,
