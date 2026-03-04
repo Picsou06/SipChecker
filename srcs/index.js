@@ -34,7 +34,7 @@ app.command('/sip-stats', handleSipStats);
 	}
 
 	try {
-		await app.client.files.info({ file: process.env.CANEVAS_LOGS });
+		await app.client.canvases.sections.lookup({ canvas_id: process.env.CANEVAS_LOGS, criteria: { contains_text: '' } });
 		console.log(`✅ Canevas ${process.env.CANEVAS_LOGS} accessible`);
 	} catch (err) {
 		console.warn(`⚠️  Canevas inaccessible: ${err.message}`);
