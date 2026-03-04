@@ -4,20 +4,20 @@ const { pool } = require('../db');
 const MEDALS = ['🥇', '🥈', '🥉'];
 
 async function getDailyStats() {
-	const [[summaryRows], [firstDrinkerRows], [top3Rows]] = await Promise.all([
+	const [[summaryRows], [firstDrinkerRows], [top3Rows], [shameRows]] = await Promise.all([
 		pool.execute(`
 			SELECT
 				COUNT(DISTINCT CASE WHEN type = 'message' THEN user_id END) AS drinkers_count,
 				COALESCE(SUM(type = 'message'), 0) AS total_drinks,
 				COALESCE(SUM(type = 'reaction'), 0) AS total_reactions
 			FROM sip_events
-			WHERE DATE(created_at) = CURDATE()
+			WHERE DATE(created_at) = CURDATE() - INTERVAL 1 DAY
 		`),
 		pool.execute(`
 			SELECT user_id, MIN(created_at) AS first_time
 			FROM sip_events
 			WHERE type = 'message'
-				AND DATE(created_at) = CURDATE()
+				AND DATE(created_at) = CURDATE() - INTERVAL 1 DAY
 			ORDER BY first_time ASC
 			LIMIT 1
 		`),
@@ -28,10 +28,19 @@ async function getDailyStats() {
 				SUM(type = 'reaction') AS reactions,
 				COUNT(*) AS total
 			FROM sip_events
-			WHERE DATE(created_at) = CURDATE()
+			WHERE DATE(created_at) = CURDATE() - INTERVAL 1 DAY
 			GROUP BY user_id
 			ORDER BY total DESC
 			LIMIT 3
+		`),
+		pool.execute(`
+			SELECT DISTINCT user_id
+			FROM sip_events
+			WHERE user_id NOT IN (
+				SELECT DISTINCT user_id
+				FROM sip_events
+				WHERE DATE(created_at) = CURDATE() - INTERVAL 1 DAY
+			)
 		`),
 	]);
 
@@ -39,19 +48,20 @@ async function getDailyStats() {
 		summary: summaryRows[0],
 		firstDrinker: firstDrinkerRows[0] || null,
 		top3: top3Rows,
+		shame: shameRows,
 	};
 }
 
-function buildContent({ summary, firstDrinker, top3 }) {
-	const today = new Date().toLocaleDateString('en-US', {
+function buildContent({ summary, firstDrinker, top3, shame }) {
+	const yesterday = new Date(Date.now() - 864e5).toLocaleDateString('en-US', {
 		weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC',
 	});
 
 	const emoji = process.env.SIP_EMOJI || 'beers';
-	const separator = Array(8).fill(`:${emoji}:`).join(' ');
+	const separator = Array(12).fill(`:${emoji}:`).join(' ');
 
 	let md = `${separator}\n\n`;
-	md += `## 📊 Daily Sip Report - ${today}\n\n`;
+	md += `## 📊 Daily :sip: Report - ${yesterday}\n\n`;
 
 	md += `**Global stats**\n\n`;
 	md += `- 👥 **${summary.drinkers_count}** people drank today\n`;
@@ -76,6 +86,15 @@ function buildContent({ summary, firstDrinker, top3 }) {
 			const row = top3[i];
 			md += `- ${MEDALS[i]} ![](@${row.user_id}) - **${row.total}** *(${row.drinks} drinks · ${row.reactions} encouragements)*\n`;
 		}
+	}
+
+	md += `\n**🫣 Hall of shame**\n\n`;
+
+	if (shame.length === 0) {
+		md += `_Everyone hydrated yesterday. Impressive._\n`;
+	} else {
+		md += `_These people forgot to hydrate yesterday:_\n\n`;
+		md += shame.map(row => `- ![](@${row.user_id})`).join('\n') + '\n';
 	}
 
 	md += `\n${separator}\n`;

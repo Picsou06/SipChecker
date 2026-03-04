@@ -1,6 +1,15 @@
 const { pool } = require('../db');
 const { getUserPrefs } = require('../utils');
-const { getT, formatTime } = require('../locales');
+const { getT, formatTime, SUPPORTED_LOCALES } = require('../locales');
+
+function parseArgs(text) {
+	const tokens = (text || '').trim().split(/\s+/).filter(Boolean);
+	let forcedLocale = null;
+	if (tokens.length > 0 && SUPPORTED_LOCALES.includes(tokens[tokens.length - 1].toLowerCase())) {
+		forcedLocale = tokens.pop().toLowerCase();
+	}
+	return { userText: tokens.join(' '), forcedLocale };
+}
 
 function parseTargetUser(text, fallback) {
 	if (!text || !text.trim()) return { userId: fallback, rawName: null };
@@ -82,7 +91,8 @@ function buildModal(stats, targetUserId, isSelf, targetName, tz, locale) {
 async function handleSipCommand({ command, ack, client, respond }) {
 	await ack();
 
-	let { userId: targetUserId, rawName } = parseTargetUser(command.text, command.user_id);
+	const { userText, forcedLocale } = parseArgs(command.text);
+	let { userId: targetUserId, rawName } = parseTargetUser(userText, command.user_id);
 
 	if (rawName) {
 		targetUserId = await resolveUsername(client, rawName);
@@ -102,10 +112,11 @@ async function handleSipCommand({ command, ack, client, respond }) {
 
 	const [{ tz, locale }, stats, targetPrefs] = await Promise.all(promises);
 	const targetName = isSelf ? null : targetPrefs.displayName;
+	const resolvedLocale = forcedLocale || locale;
 
 	await client.views.open({
 		trigger_id: command.trigger_id,
-		view: buildModal(stats, targetUserId, isSelf, targetName, tz, locale),
+		view: buildModal(stats, targetUserId, isSelf, targetName, tz, resolvedLocale),
 	});
 }
 

@@ -1,6 +1,11 @@
 const { pool } = require('../db');
 const { getUserPrefs } = require('../utils');
-const { getT } = require('../locales');
+const { getT, SUPPORTED_LOCALES } = require('../locales');
+
+function parseForcedLocale(text) {
+	const token = (text || '').trim().toLowerCase();
+	return SUPPORTED_LOCALES.includes(token) ? token : null;
+}
 
 const MEDALS = ['🥇', '🥈', '🥉'];
 
@@ -78,25 +83,27 @@ function buildModal(titleKey, { totals, top3 }, locale) {
 
 async function handleSipDay({ ack, client, command }) {
 	await ack();
+	const forcedLocale = parseForcedLocale(command.text);
 	const [{ locale }, stats] = await Promise.all([
 		getUserPrefs(client, command.user_id),
 		getStats(true),
 	]);
 	await client.views.open({
 		trigger_id: command.trigger_id,
-		view: buildModal('titleDay', stats, locale),
+		view: buildModal('titleDay', stats, forcedLocale || locale),
 	});
 }
 
 async function handleSipStats({ ack, client, command }) {
 	await ack();
+	const forcedLocale = parseForcedLocale(command.text);
 	const [{ locale }, stats] = await Promise.all([
 		getUserPrefs(client, command.user_id),
 		getStats(false),
 	]);
 	await client.views.open({
 		trigger_id: command.trigger_id,
-		view: buildModal('titleStats', stats, locale),
+		view: buildModal('titleStats', stats, forcedLocale || locale),
 	});
 }
 

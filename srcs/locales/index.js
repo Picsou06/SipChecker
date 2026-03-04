@@ -25,4 +25,6 @@ function formatTime(date, slackLocale, tz) {
 	});
 }
 
-module.exports = { getT, formatTime };
+const SUPPORTED_LOCALES = Object.keys(locales);
+
+module.exports = { getT, formatTime, SUPPORTED_LOCALES };
