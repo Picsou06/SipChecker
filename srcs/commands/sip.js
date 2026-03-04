@@ -33,27 +33,36 @@ async function resolveUsername(client, name) {
 }
 
 async function getSipStats(userId) {
-	const [rows] = await pool.execute(
-		`SELECT
-			 MIN(CASE WHEN type = 'message' THEN created_at END) AS first_sip,
-			 SUM(type = 'message') AS sip_count,
-			 SUM(type = 'reaction') AS reaction_count
-		 FROM sip_events
-		 WHERE user_id = ?
-			 AND DATE(created_at) = CURDATE()`,
-		[userId]
-	);
-	return rows[0];
+	const [[todayRows], [globalRows]] = await Promise.all([
+		pool.execute(
+			`SELECT
+				MIN(CASE WHEN type = 'message' THEN created_at END) AS first_sip,
+				SUM(type = 'message') AS sip_count,
+				SUM(type = 'reaction') AS reaction_count
+			FROM sip_events
+			WHERE user_id = ? AND DATE(created_at) = CURDATE()`,
+			[userId]
+		),
+		pool.execute(
+			`SELECT
+				SUM(type = 'message') AS sip_count,
+				SUM(type = 'reaction') AS reaction_count
+			FROM sip_events
+			WHERE user_id = ?`,
+			[userId]
+		),
+	]);
+	return { today: todayRows[0], global: globalRows[0] };
 }
 
-function buildModal(stats, targetUserId, isSelf, targetName, tz, locale) {
+function buildModal({ today, global: glob }, targetUserId, isSelf, targetName, tz, locale) {
 	const t = getT(locale);
-	const hasDrunk = Number(stats.sip_count) > 0;
+	const hasDrunk = Number(today.sip_count) > 0;
 	const ref = `<@${targetUserId}>`;
 	const blocks = [];
 
 	if (hasDrunk) {
-		const time = formatTime(stats.first_sip, locale, tz);
+		const time = formatTime(today.first_sip, locale, tz);
 		const text = isSelf ? t.sip.firstSipSelf(time) : t.sip.firstSipOther(ref, time);
 		blocks.push({ type: 'section', text: { type: 'mrkdwn', text } });
 	} else {
@@ -63,18 +72,35 @@ function buildModal(stats, targetUserId, isSelf, targetName, tz, locale) {
 
 	blocks.push({ type: 'divider' });
 
+	blocks.push({ type: 'section', text: { type: 'mrkdwn', text: t.sip.sectionToday } });
 	blocks.push({
 		type: 'section',
 		fields: [
-			{ type: 'mrkdwn', text: `${t.sip.labelMessages}\n${stats.sip_count ?? 0}` },
-			{ type: 'mrkdwn', text: `${t.sip.labelReactions}\n${stats.reaction_count ?? 0}` },
+			{ type: 'mrkdwn', text: `${t.sip.labelMessages}\n${today.sip_count ?? 0}` },
+			{ type: 'mrkdwn', text: `${t.sip.labelReactions}\n${today.reaction_count ?? 0}` },
 		],
 	});
-
 	blocks.push({
 		type: 'context',
 		elements: [
-			{ type: 'mrkdwn', text: t.sip.total(Number(stats.sip_count ?? 0) + Number(stats.reaction_count ?? 0)) },
+			{ type: 'mrkdwn', text: t.sip.total(Number(today.sip_count ?? 0) + Number(today.reaction_count ?? 0)) },
+		],
+	});
+
+	blocks.push({ type: 'divider' });
+
+	blocks.push({ type: 'section', text: { type: 'mrkdwn', text: t.sip.sectionGlobal } });
+	blocks.push({
+		type: 'section',
+		fields: [
+			{ type: 'mrkdwn', text: `${t.sip.labelMessages}\n${glob.sip_count ?? 0}` },
+			{ type: 'mrkdwn', text: `${t.sip.labelReactions}\n${glob.reaction_count ?? 0}` },
+		],
+	});
+	blocks.push({
+		type: 'context',
+		elements: [
+			{ type: 'mrkdwn', text: t.sip.totalGlobal(Number(glob.sip_count ?? 0) + Number(glob.reaction_count ?? 0)) },
 		],
 	});
 

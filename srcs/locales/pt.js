@@ -12,7 +12,10 @@ module.exports = {
 		noSipOther: (ref) => `${ref} não bebeu nada hoje 🫗`,
 		labelMessages: '*Bebidas (mensagens)*',
 		labelReactions: '*Encorajamentos (reações)*',
+		sectionToday: '*Hoje*',
+		sectionGlobal: '*Total geral*',
 		total: (n) => `Total hoje: *${n}*`,
+		totalGlobal: (n) => `Total geral: *${n}*`,
 	},
 
 	leaderboard: {

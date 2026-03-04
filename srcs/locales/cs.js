@@ -12,7 +12,10 @@ module.exports = {
 		noSipOther: (ref) => `${ref} dnes ještě nic nepil 🫗`,
 		labelMessages: '*Nápoje (zprávy)*',
 		labelReactions: '*Povzbuzení (reakce)*',
+		sectionToday: '*Dnes*',
+		sectionGlobal: '*Celkem*',
 		total: (n) => `Celkem dnes: *${n}*`,
+		totalGlobal: (n) => `Celkem: *${n}*`,
 	},
 
 	leaderboard: {
