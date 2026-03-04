@@ -36,11 +36,12 @@ async function getDailyStats() {
 		pool.execute(`
 			SELECT DISTINCT user_id
 			FROM sip_events
-			WHERE user_id NOT IN (
-				SELECT DISTINCT user_id
-				FROM sip_events
-				WHERE DATE(created_at) = CURDATE() - INTERVAL 1 DAY
-			)
+			WHERE DATE(created_at) = CURDATE() - INTERVAL 2 DAY
+				AND user_id NOT IN (
+					SELECT DISTINCT user_id
+					FROM sip_events
+					WHERE DATE(created_at) = CURDATE() - INTERVAL 1 DAY
+				)
 		`),
 	]);
 
