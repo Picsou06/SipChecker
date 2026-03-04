@@ -32,13 +32,6 @@ app.command('/sip-stats', handleSipStats);
 	} catch (err) {
 		console.warn(`⚠️  conversations.join échoué: ${err.message}`);
 	}
-
-	try {
-		await app.client.canvases.sections.lookup({ canvas_id: process.env.CANEVAS_LOGS, criteria: { contains_text: '' } });
-		console.log(`✅ Canevas ${process.env.CANEVAS_LOGS} accessible`);
-	} catch (err) {
-		console.warn(`⚠️  Canevas inaccessible: ${err.message}`);
-	}
-
+	
 	registerDailyReport(app);
 })();
