@@ -18,18 +18,16 @@ async function insertEvent(userId, channelId, type, messageId, createdAt) {
 }
 
 async function run() {
-	const oldest = String(Date.now() / 1000 - 90 * 24 * 3600);
 	let cursor;
 	let totalMessages = 0;
 	let totalReactions = 0;
 	let pages = 0;
 
-	console.log(`📥 Récupération de l'historique du channel ${CHANNEL} (90 derniers jours)...`);
+	console.log(`📥 Récupération de tout l'historique du channel ${CHANNEL}...`);
 
 	do {
 		const res = await client.conversations.history({
 			channel: CHANNEL,
-			oldest,
 			limit: 200,
 			cursor,
 		});
