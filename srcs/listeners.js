@@ -6,7 +6,7 @@ function registerListeners(app) {
 	app.event('message', async ({ event }) => {
 		if (event.subtype) return;
 
-		if (event.text && event.text.includes(SIP_EMOJI)) {
+		if (event.text && event.text.includes(':'+SIP_EMOJI+':')) {
 			logSip(event.user, event.channel, 'message', event.ts);
 		}
 	});
