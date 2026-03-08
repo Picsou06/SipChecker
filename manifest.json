@@ -29,6 +29,12 @@
         "url": "https://picsou06.fr/slack/events",
         "description": "Show today's global hydration statistics",
         "should_escape": false
+      },
+      {
+        "command": "/sip-notificate",
+        "url": "https://picsou06.fr/slack/events",
+        "description": "Enable or disable sip notifications",
+        "should_escape": false
       }
     ]
   },
