@@ -3,6 +3,7 @@ const { App } = require('@slack/bolt');
 const { registerListeners } = require('./listeners');
 const { handleSipCommand } = require('./commands/sip');
 const { handleSipDay, handleSipStats } = require('./commands/sip-leaderboard');
+const { handleSipNotificate } = require('./commands/sip-notificate');
 const { registerDailyReport } = require('./jobs/dailyReport');
 
 const app = new App({
@@ -21,6 +22,7 @@ app.error(async (error) => {
 app.command('/sip', handleSipCommand);
 app.command('/sip-day', handleSipDay);
 app.command('/sip-stats', handleSipStats);
+app.command('/sip-notificate', handleSipNotificate);
 
 (async () => {
 	await app.start();

@@ -18,6 +18,12 @@ module.exports = {
 		totalGlobal: (n) => `Totaal ooit: *${n}*`,
 	},
 
+	notificate: {
+		invalidArg: 'Gebruik: `/sip-notificate true` of `/sip-notificate false`',
+		enabled: 'Meldingen ingeschakeld. Je wordt vermeld in het dagelijkse rapport.',
+		disabled: 'Meldingen uitgeschakeld. Je verschijnt zonder vermelding in het dagelijkse rapport.',
+	},
+
 	leaderboard: {
 		titleDay: 'Sips van vandaag',
 		titleStats: 'Alle Sips',

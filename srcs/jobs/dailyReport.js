@@ -1,6 +1,19 @@
 const cron = require('node-cron');
 const { pool } = require('../db');
 
+async function getUserPingEnabled(userId) {
+	const [[rows]] = await pool.execute(
+		`SELECT enabled FROM user_ping WHERE user_id = ?`,
+		[userId]
+	);
+	return rows.length === 0 ? false : Boolean(rows[0].enabled);
+}
+
+async function formatUser(userId) {
+	const pingEnabled = await getUserPingEnabled(userId);
+	return pingEnabled ? `<@${userId}>` : `@${userId}`;
+}
+
 const MEDALS = ['🥇', '🥈', '🥉'];
 
 async function getDailyStats() {
@@ -53,7 +66,7 @@ async function getDailyStats() {
 	};
 }
 
-function buildContent({ summary, firstDrinker, top3, shame }) {
+async function buildContent({ summary, firstDrinker, top3, shame }) {
 	const yesterday = new Date(Date.now() - 864e5).toLocaleDateString('en-US', {
 		weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC',
 	});
@@ -73,7 +86,7 @@ function buildContent({ summary, firstDrinker, top3, shame }) {
 		const firstTime = new Date(firstDrinker.first_time).toLocaleTimeString('en-US', {
 			hour: '2-digit', minute: '2-digit', timeZone: 'UTC',
 		});
-		md += `- ⏰ First drink at **${firstTime} UTC** by ![](@${firstDrinker.user_id})\n`;
+		md += `- ⏰ First drink at **${firstTime} UTC** by ${await formatUser(firstDrinker.user_id)}\n`;
 	} else {
 		md += `- ⏰ Nobody drank today\n`;
 	}
@@ -85,7 +98,7 @@ function buildContent({ summary, firstDrinker, top3, shame }) {
 	} else {
 		for (let i = 0; i < top3.length; i++) {
 			const row = top3[i];
-			md += `- ${MEDALS[i]} ![](@${row.user_id}) - **${row.total}** *(${row.drinks} drinks · ${row.reactions} encouragements)*\n`;
+			md += `- ${MEDALS[i]} ${await formatUser(row.user_id)} - **${row.total}** *(${row.drinks} drinks · ${row.reactions} encouragements)*\n`;
 		}
 	}
 
@@ -95,9 +108,11 @@ function buildContent({ summary, firstDrinker, top3, shame }) {
 		md += `_Everyone hydrated yesterday. Impressive._\n`;
 	} else {
 		md += `_These people forgot to hydrate yesterday:_\n\n`;
-		md += shame.map(row => `- ![](@${row.user_id})`).join('\n') + '\n';
+		const shameLines = await Promise.all(shame.map(async row => `- ${await formatUser(row.user_id)}`));
+		md += shameLines.join('\n') + '\n';
 	}
 
+	md += `\n💡 _Want to get pinged in the next report? Use \`/sip-notificate true\` — or \`false\` to stay off the radar._\n`;
 	md += `\n${separator}\n`;
 
 	return { type: 'markdown', markdown: md };
@@ -113,7 +128,7 @@ function registerDailyReport(app) {
 				canvas_id: process.env.CANEVAS_LOGS,
 				changes: [{
 					operation: 'insert_at_start',
-					document_content: buildContent(stats),
+					document_content: await buildContent(stats),
 				}],
 			});
 

@@ -18,6 +18,12 @@ module.exports = {
 		totalGlobal: (n) => `Umumiy jami: *${n}*`,
 	},
 
+	notificate: {
+		invalidArg: 'Foydalanish: `/sip-notificate true` yoki `/sip-notificate false`',
+		enabled: 'Bildirishnomalar yoqildi. Kunlik hisobotda siz tilga olinasiz.',
+		disabled: "Bildirishnomalar o'chirildi. Siz kunlik hisobotda tilga olinmaysiz.",
+	},
+
 	leaderboard: {
 		titleDay: 'Bugungi Siplar',
 		titleStats: 'Barcha Siplar',

@@ -18,6 +18,12 @@ module.exports = {
 		totalGlobal: (n) => `Jumlah keseluruhan: *${n}*`,
 	},
 
+	notificate: {
+		invalidArg: 'Penggunaan: `/sip-notificate true` atau `/sip-notificate false`',
+		enabled: 'Pemberitahuan diaktifkan. Anda akan disebut dalam laporan harian.',
+		disabled: 'Pemberitahuan dinonaktifkan. Anda akan muncul tanpa sebutan dalam laporan harian.',
+	},
+
 	leaderboard: {
 		titleDay: 'Sip Hari Ini',
 		titleStats: 'Semua Sips',

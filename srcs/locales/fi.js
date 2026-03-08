@@ -18,6 +18,12 @@ module.exports = {
 		totalGlobal: (n) => `Kaikkiaan: *${n}*`,
 	},
 
+	notificate: {
+		invalidArg: 'Käyttö: `/sip-notificate true` tai `/sip-notificate false`',
+		enabled: 'Ilmoitukset käytössä. Sinut mainitaan päivittäisessä raportissa.',
+		disabled: 'Ilmoitukset pois käytöstä. Sinulle ei tule mainintaa päivittäisessä raportissa.',
+	},
+
 	leaderboard: {
 		titleDay: 'Tämän päivän Sipit',
 		titleStats: 'Kaikki Sipit',

@@ -18,6 +18,12 @@ module.exports = {
 		totalGlobal: (n) => `Tüm zamanlarda toplam: *${n}*`,
 	},
 
+	notificate: {
+		invalidArg: 'Kullanım: `/sip-notificate true` veya `/sip-notificate false`',
+		enabled: 'Bildirimler etkinleştirildi. Günlük raporda bahsedileceksiniz.',
+		disabled: 'Bildirimler devre dışı bırakıldı. Günlük raporda bahsedilmeden görüneceksiniz.',
+	},
+
 	leaderboard: {
 		titleDay: 'Günün Sip\'leri',
 		titleStats: 'Tüm Sip\'ler',

@@ -18,6 +18,12 @@ module.exports = {
 		totalGlobal: (n) => `Celkem: *${n}*`,
 	},
 
+	notificate: {
+		invalidArg: 'Použití: `/sip-notificate true` nebo `/sip-notificate false`',
+		enabled: 'Oznámení zapnuta. Budeš zmíněn v denním přehledu.',
+		disabled: 'Oznámení vypnuta. Zobrazíš se bez zmínky v denním přehledu.',
+	},
+
 	leaderboard: {
 		titleDay: 'Sipy dneška',
 		titleStats: 'Všechny Sipy',

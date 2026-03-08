@@ -18,6 +18,12 @@ module.exports = {
 		totalGlobal: (n) => `Total global : *${n}*`,
 	},
 
+	notificate: {
+		invalidArg: 'Usage : `/sip-notificate true` ou `/sip-notificate false`',
+		enabled: 'Notifications activées. Tu seras mentionné dans le rapport quotidien.',
+		disabled: 'Notifications désactivées. Tu apparaîtras sans mention dans le rapport quotidien.',
+	},
+
 	leaderboard: {
 		titleDay: 'Sips du jour',
 		titleStats: 'Sips globaux',

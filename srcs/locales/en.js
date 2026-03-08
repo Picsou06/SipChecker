@@ -18,6 +18,12 @@ module.exports = {
 		totalGlobal: (n) => `Total all time: *${n}*`,
 	},
 
+	notificate: {
+		invalidArg: 'Usage: `/sip-notificate true` or `/sip-notificate false`',
+		enabled: 'Notifications enabled. You will be pinged in the daily report.',
+		disabled: 'Notifications disabled. You will appear without ping in the daily report.',
+	},
+
 	leaderboard: {
 		titleDay: "Today's Sips",
 		titleStats: 'All-time Sips',
