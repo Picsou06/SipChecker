@@ -2,7 +2,7 @@ const cron = require('node-cron');
 const { pool } = require('../db');
 
 async function getUserPingEnabled(userId) {
-	const [[rows]] = await pool.execute(
+	const [rows] = await pool.execute(
 		`SELECT enabled FROM user_ping WHERE user_id = ?`,
 		[userId]
 	);

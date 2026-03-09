@@ -17,6 +17,9 @@ function parseTargetUser(text, fallback) {
 	const idMatch = text.match(/<@([A-Z0-9]+)(?:\|[^>]+)?>/);
 	if (idMatch) return { userId: idMatch[1], rawName: null };
 
+	const rawIdMatch = text.trim().match(/^[A-Z][A-Z0-9]{5,}$/);
+	if (rawIdMatch) return { userId: text.trim(), rawName: null };
+
 	const nameMatch = text.trim().match(/^@?([\w.]+)$/);
 	if (nameMatch) return { userId: null, rawName: nameMatch[1] };
 
