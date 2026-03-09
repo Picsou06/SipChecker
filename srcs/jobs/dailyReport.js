@@ -9,14 +9,26 @@ async function getUserPingEnabled(userId) {
 	return rows.length === 0 ? false : Boolean(rows[0].enabled);
 }
 
-async function formatUser(userId) {
+async function resolveDisplayName(client, userId) {
+	try {
+		const res = await client.users.info({ user: userId });
+		const p = res.user?.profile;
+		return p?.display_name || p?.real_name || res.user?.name || userId;
+	} catch {
+		return userId;
+	}
+}
+
+async function formatUser(userId, client) {
 	const pingEnabled = await getUserPingEnabled(userId);
-	return pingEnabled ? `<@${userId}>` : `@${userId}`;
+	if (pingEnabled) return `![](@${userId})`;
+	const name = await resolveDisplayName(client, userId);
+	return `@${name}`;
 }
 
 const MEDALS = ['🥇', '🥈', '🥉'];
 
-async function getDailyStats() {
+async function getDailyStats(dateStr) {
 	const [[summaryRows], [firstDrinkerRows], [top3Rows], [shameRows]] = await Promise.all([
 		pool.execute(`
 			SELECT
@@ -24,16 +36,16 @@ async function getDailyStats() {
 				COALESCE(SUM(type = 'message'), 0) AS total_drinks,
 				COALESCE(SUM(type = 'reaction'), 0) AS total_reactions
 			FROM sip_events
-			WHERE DATE(created_at) = CURDATE() - INTERVAL 1 DAY
-		`),
+			WHERE DATE(created_at) = ?
+		`, [dateStr]),
 		pool.execute(`
 			SELECT user_id, MIN(created_at) AS first_time
 			FROM sip_events
 			WHERE type = 'message'
-				AND DATE(created_at) = CURDATE() - INTERVAL 1 DAY
+				AND DATE(created_at) = ?
 			ORDER BY first_time ASC
 			LIMIT 1
-		`),
+		`, [dateStr]),
 		pool.execute(`
 			SELECT
 				user_id,
@@ -41,21 +53,21 @@ async function getDailyStats() {
 				SUM(type = 'reaction') AS reactions,
 				COUNT(*) AS total
 			FROM sip_events
-			WHERE DATE(created_at) = CURDATE() - INTERVAL 1 DAY
+			WHERE DATE(created_at) = ?
 			GROUP BY user_id
 			ORDER BY total DESC
 			LIMIT 3
-		`),
+		`, [dateStr]),
 		pool.execute(`
 			SELECT DISTINCT user_id
 			FROM sip_events
-			WHERE DATE(created_at) = CURDATE() - INTERVAL 2 DAY
+			WHERE DATE(created_at) = DATE(?) - INTERVAL 1 DAY
 				AND user_id NOT IN (
 					SELECT DISTINCT user_id
 					FROM sip_events
-					WHERE DATE(created_at) = CURDATE() - INTERVAL 1 DAY
+					WHERE DATE(created_at) = ?
 				)
-		`),
+		`, [dateStr, dateStr]),
 	]);
 
 	return {
@@ -66,8 +78,8 @@ async function getDailyStats() {
 	};
 }
 
-async function buildContent({ summary, firstDrinker, top3, shame }) {
-	const yesterday = new Date(Date.now() - 864e5).toLocaleDateString('en-US', {
+async function buildContent({ summary, firstDrinker, top3, shame }, dateStr, client) {
+	const displayDate = new Date(dateStr + 'T12:00:00Z').toLocaleDateString('en-US', {
 		weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC',
 	});
 
@@ -75,7 +87,7 @@ async function buildContent({ summary, firstDrinker, top3, shame }) {
 	const separator = Array(12).fill(`:${emoji}:`).join(' ');
 
 	let md = `${separator}\n\n`;
-	md += `## 📊 Daily :sip: Report - ${yesterday}\n\n`;
+	md += `## 📊 Daily :sip: Report - ${displayDate}\n\n`;
 
 	md += `**Global stats**\n\n`;
 	md += `- 👥 **${summary.drinkers_count}** people drank today\n`;
@@ -86,7 +98,7 @@ async function buildContent({ summary, firstDrinker, top3, shame }) {
 		const firstTime = new Date(firstDrinker.first_time).toLocaleTimeString('en-US', {
 			hour: '2-digit', minute: '2-digit', timeZone: 'UTC',
 		});
-		md += `- ⏰ First drink at **${firstTime} UTC** by ${await formatUser(firstDrinker.user_id)}\n`;
+		md += `- ⏰ First drink at **${firstTime} UTC** by ${await formatUser(firstDrinker.user_id, client)}\n`;
 	} else {
 		md += `- ⏰ Nobody drank today\n`;
 	}
@@ -96,10 +108,12 @@ async function buildContent({ summary, firstDrinker, top3, shame }) {
 	if (top3.length === 0) {
 		md += `_No drinks recorded today._\n`;
 	} else {
-		for (let i = 0; i < top3.length; i++) {
-			const row = top3[i];
-			md += `- ${MEDALS[i]} ${await formatUser(row.user_id)} - **${row.total}** *(${row.drinks} drinks · ${row.reactions} encouragements)*\n`;
-		}
+		const top3Lines = await Promise.all(top3.map((row, i) =>
+			formatUser(row.user_id, client).then(name =>
+				`- ${MEDALS[i]} ${name} - **${row.total}** *(${row.drinks} drinks · ${row.reactions} encouragements)*`
+			)
+		));
+		md += top3Lines.join('\n') + '\n';
 	}
 
 	md += `\n**🫣 Hall of shame**\n\n`;
@@ -108,11 +122,11 @@ async function buildContent({ summary, firstDrinker, top3, shame }) {
 		md += `_Everyone hydrated yesterday. Impressive._\n`;
 	} else {
 		md += `_These people forgot to hydrate yesterday:_\n\n`;
-		const shameLines = await Promise.all(shame.map(async row => `- ${await formatUser(row.user_id)}`));
+		const shameLines = await Promise.all(shame.map(async row => `- ${await formatUser(row.user_id, client)}`));
 		md += shameLines.join('\n') + '\n';
 	}
 
-	md += `\n💡 _Want to get pinged in the next report? Use \`/sip-notificate true\` — or \`false\` to stay off the radar._\n`;
+	md += `\n💡 _Want to get pinged in the next report? Use \`/sip-notificate true\`_\n`;
 	md += `\n${separator}\n`;
 
 	return { type: 'markdown', markdown: md };
@@ -122,13 +136,14 @@ function registerDailyReport(app) {
 	cron.schedule('0 0 * * *', async () => {
 		console.log('Running daily sip report...');
 		try {
-			const stats = await getDailyStats();
+			const yesterday = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
+			const stats = await getDailyStats(yesterday);
 
 			await app.client.canvases.edit({
 				canvas_id: process.env.CANEVAS_LOGS,
 				changes: [{
 					operation: 'insert_at_start',
-					document_content: await buildContent(stats),
+					document_content: await buildContent(stats, yesterday, app.client),
 				}],
 			});
 
@@ -139,4 +154,4 @@ function registerDailyReport(app) {
 	});
 }
 
-module.exports = { registerDailyReport };
+module.exports = { registerDailyReport, getDailyStats, buildContent };
