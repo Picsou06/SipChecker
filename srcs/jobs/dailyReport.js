@@ -83,7 +83,7 @@ async function buildContent({ summary, firstDrinker, top3, shame }, dateStr, cli
 		weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC',
 	});
 
-	const emoji = process.env.SIP_EMOJI || 'beers';
+	const emoji = (process.env.SIP_EMOJI || 'beers').split(',')[0].trim();
 	const separator = Array(12).fill(`:${emoji}:`).join(' ');
 
 	let md = `${separator}\n\n`;

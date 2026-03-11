@@ -4,7 +4,7 @@ const { pool } = require('../db');
 
 const client = new WebClient(process.env.SLACK_BOT_TOKEN);
 const CHANNEL = process.env.CHANNEL_SIP_ALERTS;
-const SIP_EMOJI = process.env.SIP_EMOJI;
+const SIP_EMOJIS = (process.env.SIP_EMOJI || '').split(',').map(e => e.trim()).filter(Boolean);
 
 function tsToDatetime(ts) {
 	return new Date(parseFloat(ts) * 1000).toISOString().slice(0, 19).replace('T', ' ');
@@ -22,14 +22,14 @@ async function processMessage(msg, totalMessages, totalReactions) {
 
 	const createdAt = tsToDatetime(msg.ts);
 
-	if (msg.text && msg.text.includes(':'+SIP_EMOJI+':')) {
+	if (msg.text && SIP_EMOJIS.some(e => msg.text.includes(':'+e+':'))) {
 		await insertEvent(msg.user, CHANNEL, 'message', msg.ts, createdAt);
 		totalMessages++;
 	}
 
 	if (msg.reactions) {
 		for (const reaction of msg.reactions) {
-			if (reaction.name === SIP_EMOJI) {
+			if (SIP_EMOJIS.includes(reaction.name)) {
 				for (const userId of reaction.users) {
 					await insertEvent(userId, CHANNEL, 'reaction', msg.ts, createdAt);
 					totalReactions++;

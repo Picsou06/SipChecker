@@ -1,4 +1,4 @@
-const SIP_EMOJI = process.env.SIP_EMOJI;
+const SIP_EMOJI = (process.env.SIP_EMOJI || "").split(",")[0].trim();
 
 module.exports = {
 	close: 'Fechar',
