@@ -40,16 +40,16 @@ async function getSipStats(userId) {
 		pool.execute(
 			`SELECT
 				MIN(CASE WHEN type = 'message' THEN created_at END) AS first_sip,
-				SUM(type = 'message') AS sip_count,
-				SUM(type = 'reaction') AS reaction_count
+				CAST(SUM(type = 'message') - SUM(type = 'message_unsip') AS SIGNED) AS sip_count,
+				CAST(SUM(type = 'reaction') - SUM(type = 'reaction_unsip') AS SIGNED) AS reaction_count
 			FROM sip_events
 			WHERE user_id = ? AND DATE(created_at) = CURDATE()`,
 			[userId]
 		),
 		pool.execute(
 			`SELECT
-				SUM(type = 'message') AS sip_count,
-				SUM(type = 'reaction') AS reaction_count
+				CAST(SUM(type = 'message') - SUM(type = 'message_unsip') AS SIGNED) AS sip_count,
+				CAST(SUM(type = 'reaction') - SUM(type = 'reaction_unsip') AS SIGNED) AS reaction_count
 			FROM sip_events
 			WHERE user_id = ?`,
 			[userId]

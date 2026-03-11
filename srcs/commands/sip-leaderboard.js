@@ -15,16 +15,16 @@ async function getStats(todayOnly) {
 	const [[totalsRows], [top3Rows]] = await Promise.all([
 		pool.execute(`
 			SELECT
-				COALESCE(SUM(type = 'message'), 0) AS total_messages,
-				COALESCE(SUM(type = 'reaction'), 0) AS total_reactions
+				CAST(COALESCE(SUM(type = 'message'), 0) - COALESCE(SUM(type = 'message_unsip'), 0) AS SIGNED) AS total_messages,
+				CAST(COALESCE(SUM(type = 'reaction'), 0) - COALESCE(SUM(type = 'reaction_unsip'), 0) AS SIGNED) AS total_reactions
 			FROM sip_events ${where}
 		`),
 		pool.execute(`
 			SELECT
 				user_id,
-				SUM(type = 'message') AS msg_count,
-				SUM(type = 'reaction') AS react_count,
-				COUNT(*) AS total
+				CAST(SUM(type = 'message') - SUM(type = 'message_unsip') AS SIGNED) AS msg_count,
+				CAST(SUM(type = 'reaction') - SUM(type = 'reaction_unsip') AS SIGNED) AS react_count,
+				CAST(SUM(type IN ('message', 'reaction')) - SUM(type IN ('message_unsip', 'reaction_unsip')) AS SIGNED) AS total
 			FROM sip_events ${where}
 			GROUP BY user_id
 			ORDER BY total DESC
