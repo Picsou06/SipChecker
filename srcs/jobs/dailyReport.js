@@ -33,8 +33,8 @@ async function getDailyStats(dateStr) {
 		pool.execute(`
 			SELECT
 				COUNT(DISTINCT CASE WHEN type = 'message' THEN user_id END) AS drinkers_count,
-				COALESCE(SUM(type = 'message'), 0) AS total_drinks,
-				COALESCE(SUM(type = 'reaction'), 0) AS total_reactions
+				CAST(COALESCE(SUM(type = 'message'), 0) - COALESCE(SUM(type = 'message_unsip'), 0) AS SIGNED) AS total_drinks,
+				CAST(COALESCE(SUM(type = 'reaction'), 0) - COALESCE(SUM(type = 'reaction_unsip'), 0) AS SIGNED) AS total_reactions
 			FROM sip_events
 			WHERE DATE(created_at) = ?
 		`, [dateStr]),
@@ -49,9 +49,9 @@ async function getDailyStats(dateStr) {
 		pool.execute(`
 			SELECT
 				user_id,
-				SUM(type = 'message') AS drinks,
-				SUM(type = 'reaction') AS reactions,
-				COUNT(*) AS total
+				CAST(SUM(type = 'message') - SUM(type = 'message_unsip') AS SIGNED) AS drinks,
+				CAST(SUM(type = 'reaction') - SUM(type = 'reaction_unsip') AS SIGNED) AS reactions,
+				CAST(SUM(type IN ('message', 'reaction')) - SUM(type IN ('message_unsip', 'reaction_unsip')) AS SIGNED) AS total
 			FROM sip_events
 			WHERE DATE(created_at) = ?
 			GROUP BY user_id

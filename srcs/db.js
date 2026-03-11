@@ -13,16 +13,30 @@ const pool = mysql.createPool({
 	queueLimit: 0,
 });
 
-async function logSip(userId, channelId, type, messageId) {
+async function logSip(userId, channelId, type, messageId, emoji) {
 	await pool.execute(
-		'INSERT IGNORE INTO sip_events (user_id, channel_id, type, message_id) VALUES (?, ?, ?, ?)',
-		[userId, channelId, type, messageId]
+		'INSERT IGNORE INTO sip_events (user_id, channel_id, type, emoji, message_id) VALUES (?, ?, ?, ?, ?)',
+		[userId, channelId, type, emoji || 'sip', messageId]
 	);
 }
 
 async function removeSip(userId, messageId) {
 	await pool.execute(
 		"DELETE FROM sip_events WHERE user_id = ? AND message_id = ? AND type = 'reaction'",
+		[userId, messageId]
+	);
+}
+
+async function logUnsip(userId, channelId, type, messageId, emoji) {
+	await pool.execute(
+		'INSERT IGNORE INTO sip_events (user_id, channel_id, type, emoji, message_id) VALUES (?, ?, ?, ?, ?)',
+		[userId, channelId, type === 'message' ? 'message_unsip' : 'reaction_unsip', emoji || 'sip', messageId]
+	);
+}
+
+async function removeUnsip(userId, messageId) {
+	await pool.execute(
+		"DELETE FROM sip_events WHERE user_id = ? AND message_id = ? AND type = 'reaction_unsip'",
 		[userId, messageId]
 	);
 }
@@ -43,4 +57,4 @@ async function getUserWhoForgotSips() {
 }
 
 
-module.exports = { pool, logSip, removeSip, getUserWhoForgotSips };
+module.exports = { pool, logSip, removeSip, logUnsip, removeUnsip, getUserWhoForgotSips };
