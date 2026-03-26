@@ -20,6 +20,14 @@ async function logSip(userId, channelId, type, messageId, emoji) {
 	);
 }
 
+async function hasMessageSip(userId) {
+	const [rows] = await pool.execute(
+		"SELECT 1 FROM sip_events WHERE user_id = ? AND type = 'message' LIMIT 1",
+		[userId]
+	);
+	return rows.length > 0;
+}
+
 async function removeSip(userId, messageId) {
 	await pool.execute(
 		"DELETE FROM sip_events WHERE user_id = ? AND message_id = ? AND type = 'reaction'",
@@ -57,4 +65,4 @@ async function getUserWhoForgotSips() {
 }
 
 
-module.exports = { pool, logSip, removeSip, logUnsip, removeUnsip, getUserWhoForgotSips };
+module.exports = { pool, logSip, removeSip, logUnsip, removeUnsip, getUserWhoForgotSips, hasMessageSip };
