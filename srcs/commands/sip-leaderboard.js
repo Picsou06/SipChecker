@@ -9,6 +9,56 @@ function parseForcedLocale(text) {
 
 const MEDALS = ['🥇', '🥈', '🥉'];
 
+async function getStreakForDate(userId, dateStr) {
+	const [rows] = await pool.execute(
+		`SELECT
+			MAX(day) AS last_day,
+			COUNT(*) AS streak_days
+		FROM (
+			SELECT
+				DATE(created_at) AS day,
+				DATE_SUB(DATE(created_at), INTERVAL DENSE_RANK() OVER (ORDER BY DATE(created_at)) DAY) AS grp
+			FROM sip_events
+			WHERE user_id = ?
+				AND DATE(created_at) <= ?
+			GROUP BY DATE(created_at)
+		) AS streaks
+		GROUP BY grp
+		ORDER BY last_day DESC
+		LIMIT 1`,
+		[userId, dateStr]
+	);
+
+	return Number(rows[0]?.streak_days || 0);
+}
+
+async function getCurrentStreak(userId) {
+	const [rows] = await pool.execute(
+		`SELECT
+			MAX(day) AS last_day,
+			COUNT(*) AS streak_days,
+			MAX(day) = CURDATE() AS is_today
+		FROM (
+			SELECT
+				DATE(created_at) AS day,
+				DATE_SUB(DATE(created_at), INTERVAL DENSE_RANK() OVER (ORDER BY DATE(created_at)) DAY) AS grp
+			FROM sip_events
+			WHERE user_id = ?
+			GROUP BY DATE(created_at)
+		) AS streaks
+		GROUP BY grp
+		ORDER BY last_day DESC
+		LIMIT 1`,
+		[userId]
+	);
+
+	const row = rows[0] || {};
+	return {
+		current: Number(row.streak_days || 0),
+		isToday: Boolean(row.is_today),
+	};
+}
+
 async function getStats(todayOnly) {
 	const where = todayOnly ? 'WHERE DATE(created_at) = CURDATE()' : '';
 
@@ -35,7 +85,7 @@ async function getStats(todayOnly) {
 	return { totals: totalsRows[0], top3: top3Rows };
 }
 
-function buildModal(titleKey, { totals, top3 }, locale) {
+async function buildModal(titleKey, { totals, top3 }, locale, dateStr) {
 	const t = getT(locale);
 	const lb = t.leaderboard;
 	const blocks = [];
@@ -61,16 +111,26 @@ function buildModal(titleKey, { totals, top3 }, locale) {
 			text: { type: 'mrkdwn', text: lb.noSips },
 		});
 	} else {
-		for (let i = 0; i < top3.length; i++) {
-			const row = top3[i];
-			blocks.push({
+		const top3Lines = await Promise.all(top3.map(async (row, i) => {
+			const currentStreak = await getCurrentStreak(row.user_id);
+			const streakEmoji = currentStreak.isToday ? '🔥' : '⚪';
+			const streakLabel = `${streakEmoji} ${currentStreak.current}`;
+			return {
 				type: 'section',
 				text: {
 					type: 'mrkdwn',
-					text: lb.topEntry(MEDALS[i], `<@${row.user_id}>`, row.total, row.msg_count, row.react_count),
+					text: lb.topEntry(
+						MEDALS[i],
+						`<@${row.user_id}>`,
+						row.total,
+						row.msg_count,
+						row.react_count,
+						streakLabel
+					),
 				},
-			});
-		}
+			};
+		}));
+		blocks.push(...top3Lines);
 	}
 
 	return {
@@ -88,9 +148,10 @@ async function handleSipDay({ ack, client, command }) {
 		getUserPrefs(client, command.user_id),
 		getStats(true),
 	]);
+	const dateStr = new Date().toISOString().slice(0, 10);
 	await client.views.open({
 		trigger_id: command.trigger_id,
-		view: buildModal('titleDay', stats, forcedLocale || locale),
+		view: await buildModal('titleDay', stats, forcedLocale || locale, dateStr),
 	});
 }
 
@@ -101,9 +162,10 @@ async function handleSipStats({ ack, client, command }) {
 		getUserPrefs(client, command.user_id),
 		getStats(false),
 	]);
+	const dateStr = new Date().toISOString().slice(0, 10);
 	await client.views.open({
 		trigger_id: command.trigger_id,
-		view: buildModal('titleStats', stats, forcedLocale || locale),
+		view: await buildModal('titleStats', stats, forcedLocale || locale, dateStr),
 	});
 }
 

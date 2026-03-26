@@ -36,7 +36,7 @@ async function resolveUsername(client, name) {
 }
 
 async function getSipStats(userId) {
-	const [[todayRows], [globalRows]] = await Promise.all([
+	const [[todayRows], [globalRows], [currentStreakRows], [bestStreakRows]] = await Promise.all([
 		pool.execute(
 			`SELECT
 				MIN(CASE WHEN type = 'message' THEN created_at END) AS first_sip,
@@ -54,11 +54,57 @@ async function getSipStats(userId) {
 			WHERE user_id = ?`,
 			[userId]
 		),
+		pool.execute(
+			`SELECT
+				MAX(day) AS last_day,
+				COUNT(*) AS streak_days,
+				MAX(day) = CURDATE() AS is_today
+			FROM (
+				SELECT
+					DATE(created_at) AS day,
+					DATE_SUB(DATE(created_at), INTERVAL DENSE_RANK() OVER (ORDER BY DATE(created_at)) DAY) AS grp
+				FROM sip_events
+				WHERE user_id = ?
+				GROUP BY DATE(created_at)
+			) AS streaks
+			GROUP BY grp
+			ORDER BY last_day DESC
+			LIMIT 1`,
+			[userId]
+		),
+		pool.execute(
+			`SELECT MAX(streak_days) AS best_streak
+			FROM (
+				SELECT COUNT(*) AS streak_days
+				FROM (
+					SELECT
+						DATE(created_at) AS day,
+						DATE_SUB(DATE(created_at), INTERVAL DENSE_RANK() OVER (ORDER BY DATE(created_at)) DAY) AS grp
+					FROM sip_events
+					WHERE user_id = ?
+					GROUP BY DATE(created_at)
+				) AS streaks
+				GROUP BY grp
+			) AS bests`,
+			[userId]
+		),
 	]);
-	return { today: todayRows[0], global: globalRows[0] };
+
+	const currentStreak = currentStreakRows[0] || {};
+	const bestStreak = bestStreakRows[0] || {};
+
+	return {
+		today: todayRows[0],
+		global: globalRows[0],
+		streak: {
+			current: Number(currentStreak.streak_days || 0),
+			isToday: Boolean(currentStreak.is_today),
+			best: Number(bestStreak.best_streak || 0),
+		},
+	};
 }
 
-function buildModal({ today, global: glob }, targetUserId, isSelf, targetName, tz, locale) {
+function buildModal({ today, global: glob, streak }, targetUserId, isSelf, targetName, tz, locale) {
 	const t = getT(locale);
 	const hasDrunk = Number(today.sip_count) > 0;
 	const ref = `<@${targetUserId}>`;
@@ -106,12 +152,20 @@ function buildModal({ today, global: glob }, targetUserId, isSelf, targetName, t
 			{ type: 'mrkdwn', text: t.sip.totalGlobal(Number(glob.sip_count ?? 0) + Number(glob.reaction_count ?? 0)) },
 		],
 	});
+	blocks.push({
+		type: 'context',
+		elements: [
+			{ type: 'mrkdwn', text: t.sip.bestStreak(streak.best) },
+		],
+	});
 
 	const title = isSelf ? t.sip.titleSelf : t.sip.titleOther(`@${targetName}`);
+	const flameEmoji = streak.isToday ? '🔥' : '⚪';
+	const titleWithStreak = `${title} · ${flameEmoji} ${streak.current}`;
 
 	return {
 		type: 'modal',
-		title: { type: 'plain_text', text: title, emoji: true },
+		title: { type: 'plain_text', text: titleWithStreak, emoji: true },
 		close: { type: 'plain_text', text: t.close, emoji: true },
 		blocks,
 	};

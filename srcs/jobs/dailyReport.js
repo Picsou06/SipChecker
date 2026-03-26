@@ -28,6 +28,29 @@ async function formatUser(userId, client) {
 
 const MEDALS = ['🥇', '🥈', '🥉'];
 
+async function getStreakForDate(userId, dateStr) {
+	const [rows] = await pool.execute(
+		`SELECT
+			MAX(day) AS last_day,
+			COUNT(*) AS streak_days
+		FROM (
+			SELECT
+				DATE(created_at) AS day,
+				DATE_SUB(DATE(created_at), INTERVAL DENSE_RANK() OVER (ORDER BY DATE(created_at)) DAY) AS grp
+			FROM sip_events
+			WHERE user_id = ?
+				AND DATE(created_at) <= ?
+			GROUP BY DATE(created_at)
+		) AS streaks
+		GROUP BY grp
+		ORDER BY last_day DESC
+		LIMIT 1`,
+		[userId, dateStr]
+	);
+
+	return Number(rows[0]?.streak_days || 0);
+}
+
 async function getDailyStats(dateStr) {
 	const [[summaryRows], [firstDrinkerRows], [top3Rows], [shameRows]] = await Promise.all([
 		pool.execute(`
@@ -98,7 +121,9 @@ async function buildContent({ summary, firstDrinker, top3, shame }, dateStr, cli
 		const firstTime = new Date(firstDrinker.first_time).toLocaleTimeString('en-US', {
 			hour: '2-digit', minute: '2-digit', timeZone: 'UTC',
 		});
-		md += `- ⏰ First drink at **${firstTime} UTC** by ${await formatUser(firstDrinker.user_id, client)}\n`;
+		const firstName = await formatUser(firstDrinker.user_id, client);
+		const firstStreak = await getStreakForDate(firstDrinker.user_id, dateStr);
+		md += `- ⏰ First drink at **${firstTime} UTC** by ${firstName} (🔥 ${firstStreak})\n`;
 	} else {
 		md += `- ⏰ Nobody drank today\n`;
 	}
@@ -108,11 +133,11 @@ async function buildContent({ summary, firstDrinker, top3, shame }, dateStr, cli
 	if (top3.length === 0) {
 		md += `_No drinks recorded today._\n`;
 	} else {
-		const top3Lines = await Promise.all(top3.map((row, i) =>
-			formatUser(row.user_id, client).then(name =>
-				`- ${MEDALS[i]} ${name} - **${row.total}** *(${row.drinks} drinks · ${row.reactions} encouragements)*`
-			)
-		));
+		const top3Lines = await Promise.all(top3.map(async (row, i) => {
+			const name = await formatUser(row.user_id, client);
+			const streak = await getStreakForDate(row.user_id, dateStr);
+			return `- ${MEDALS[i]} ${name} - **${row.total}** *(${row.drinks} drinks · ${row.reactions} encouragements)* · 🔥 ${streak}`;
+		}));
 		md += top3Lines.join('\n') + '\n';
 	}
 
@@ -122,7 +147,14 @@ async function buildContent({ summary, firstDrinker, top3, shame }, dateStr, cli
 		md += `_Everyone hydrated yesterday. Impressive._\n`;
 	} else {
 		md += `_These people forgot to hydrate yesterday:_\n\n`;
-		const shameLines = await Promise.all(shame.map(async row => `- ${await formatUser(row.user_id, client)}`));
+		const shameDate = new Date(`${dateStr}T00:00:00Z`);
+		shameDate.setUTCDate(shameDate.getUTCDate() - 1);
+		const shameDateStr = shameDate.toISOString().slice(0, 10);
+		const shameLines = await Promise.all(shame.map(async row => {
+			const name = await formatUser(row.user_id, client);
+			const lostStreak = await getStreakForDate(row.user_id, shameDateStr);
+			return `- ${name} · 💔 ${lostStreak}`;
+		}));
 		md += shameLines.join('\n') + '\n';
 	}
 

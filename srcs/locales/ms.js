@@ -16,6 +16,7 @@ module.exports = {
 		sectionGlobal: '*Keseluruhan*',
 		total: (n) => `Jumlah hari ini: *${n}*`,
 		totalGlobal: (n) => `Jumlah keseluruhan: *${n}*`,
+		bestStreak: (n) => `Best streak: *${n} days*`,
 	},
 
 	notificate: {
@@ -31,7 +32,7 @@ module.exports = {
 		labelReactions: '*Galakan (reaksi)*',
 		top3Header: '*Top 3*',
 		noSips: '_Tiada minuman direkodkan lagi._',
-		topEntry: (medal, ref, total, msg, react) =>
-			`${medal} ${ref} - *${total}*  _(${msg} minuman · ${react} galakan)_`,
+		topEntry: (medal, ref, total, msg, react, streakLabel) =>
+			`${medal} ${ref} - *${total}*  _(${msg} minuman · ${react} galakan)_ · ${streakLabel}`,
 	},
 };

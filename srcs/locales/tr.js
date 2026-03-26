@@ -16,6 +16,7 @@ module.exports = {
 		sectionGlobal: '*Tüm zamanlar*',
 		total: (n) => `Bugün toplam: *${n}*`,
 		totalGlobal: (n) => `Tüm zamanlarda toplam: *${n}*`,
+		bestStreak: (n) => `Best streak: *${n} days*`,
 	},
 
 	notificate: {
@@ -31,7 +32,7 @@ module.exports = {
 		labelReactions: '*Teşvikler (tepkiler)*',
 		top3Header: '*Top 3*',
 		noSips: '_Henüz içecek kaydedilmedi._',
-		topEntry: (medal, ref, total, msg, react) =>
-			`${medal} ${ref} - *${total}*  _(${msg} içecek · ${react} teşvik)_`,
+		topEntry: (medal, ref, total, msg, react, streakLabel) =>
+			`${medal} ${ref} - *${total}*  _(${msg} içecek · ${react} teşvik)_ · ${streakLabel}`,
 	},
 };

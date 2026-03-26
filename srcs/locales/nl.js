@@ -16,6 +16,7 @@ module.exports = {
 		sectionGlobal: '*Totaal ooit*',
 		total: (n) => `Totaal vandaag: *${n}*`,
 		totalGlobal: (n) => `Totaal ooit: *${n}*`,
+		bestStreak: (n) => `Best streak: *${n} days*`,
 	},
 
 	notificate: {
@@ -31,7 +32,7 @@ module.exports = {
 		labelReactions: '*Aanmoedigingen (reacties)*',
 		top3Header: '*Top 3*',
 		noSips: '_Nog geen drankjes geregistreerd._',
-		topEntry: (medal, ref, total, msg, react) =>
-			`${medal} ${ref} - *${total}*  _(${msg} drankjes · ${react} aanmoedigingen)_`,
+		topEntry: (medal, ref, total, msg, react, streakLabel) =>
+			`${medal} ${ref} - *${total}*  _(${msg} drankjes · ${react} aanmoedigingen)_ · ${streakLabel}`,
 	},
 };

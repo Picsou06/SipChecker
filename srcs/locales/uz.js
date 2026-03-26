@@ -16,6 +16,7 @@ module.exports = {
 		sectionGlobal: '*Jami*',
 		total: (n) => `Bugun jami: *${n}*`,
 		totalGlobal: (n) => `Umumiy jami: *${n}*`,
+		bestStreak: (n) => `Best streak: *${n} days*`,
 	},
 
 	notificate: {
@@ -31,7 +32,7 @@ module.exports = {
 		labelReactions: '*Ragʻbatlar (reaktsiyalar)*',
 		top3Header: '*Top 3*',
 		noSips: '_Hali ichimliklar qayd etilmagan._',
-		topEntry: (medal, ref, total, msg, react) =>
-			`${medal} ${ref} - *${total}*  _(${msg} ichimlik · ${react} ragʻbat)_`,
+		topEntry: (medal, ref, total, msg, react, streakLabel) =>
+			`${medal} ${ref} - *${total}*  _(${msg} ichimlik · ${react} ragʻbat)_ · ${streakLabel}`,
 	},
 };

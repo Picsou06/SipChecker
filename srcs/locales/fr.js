@@ -16,6 +16,7 @@ module.exports = {
 		sectionGlobal: '*Global*',
 		total: (n) => `Total aujourd'hui : *${n}*`,
 		totalGlobal: (n) => `Total global : *${n}*`,
+		bestStreak: (n) => `Meilleure streak : *${n} jours*`,
 	},
 
 	notificate: {
@@ -31,7 +32,7 @@ module.exports = {
 		labelReactions: '*Encouragements (réactions)*',
 		top3Header: '*Top 3*',
 		noSips: "_Aucune consommation enregistrée pour l'instant._",
-		topEntry: (medal, ref, total, msg, react) =>
-			`${medal} ${ref} - *${total}*  _(${msg} verres · ${react} encouragements)_`,
+		topEntry: (medal, ref, total, msg, react, streakLabel) =>
+			`${medal} ${ref} - *${total}*  _(${msg} verres · ${react} encouragements)_ · ${streakLabel}`,
 	},
 };

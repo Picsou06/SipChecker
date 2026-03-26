@@ -16,6 +16,7 @@ module.exports = {
 		sectionGlobal: '*Kaikkiaan*',
 		total: (n) => `Yhteensä tänään: *${n}*`,
 		totalGlobal: (n) => `Kaikkiaan: *${n}*`,
+		bestStreak: (n) => `Best streak: *${n} days*`,
 	},
 
 	notificate: {
@@ -31,7 +32,7 @@ module.exports = {
 		labelReactions: '*Kannustukset (reaktiot)*',
 		top3Header: '*Top 3*',
 		noSips: '_Ei juomia rekisteröity vielä._',
-		topEntry: (medal, ref, total, msg, react) =>
-			`${medal} ${ref} - *${total}*  _(${msg} juomaa · ${react} kannustusta)_`,
+		topEntry: (medal, ref, total, msg, react, streakLabel) =>
+			`${medal} ${ref} - *${total}*  _(${msg} juomaa · ${react} kannustusta)_ · ${streakLabel}`,
 	},
 };
