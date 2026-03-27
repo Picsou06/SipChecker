@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const SIP_EMOJIS = (process.env.SIP_EMOJI || '').split(',').map(e => e.trim()).filter(Boolean);
 const UNSIP_EMOJIS = (process.env.UNSIP_EMOJI || '').split(',').map(e => e.trim()).filter(Boolean);
 const { logSip, removeSip, logUnsip, removeUnsip, hasMessageSip } = require('./db');
@@ -11,10 +13,27 @@ function registerListeners(app) {
 			const isFirstSip = !(await hasMessageSip(event.user));
 			await logSip(event.user, event.channel, 'message', event.ts, sipEmoji);
 			if (isFirstSip) {
+				const welcomeText = 'Welcome to the cult. Your first sip is on us. 🍻:sip:';
+				const welcomeFilePath = path.join(__dirname, 'files', 'welcome_sip.mp4');
+				if (fs.existsSync(welcomeFilePath)) {
+					try {
+						await client.files.upload({
+							channels: event.channel,
+							file: fs.createReadStream(welcomeFilePath),
+							filename: 'welcome_sip.mp4',
+							title: 'Welcome sip',
+							initial_comment: welcomeText,
+							thread_ts: event.ts,
+						});
+						return;
+					} catch (err) {
+						console.warn(`⚠️  files.upload échoué: ${err.message}`);
+					}
+				}
 				await client.chat.postMessage({
 					channel: event.channel,
 					thread_ts: event.ts,
-					text: 'Welcome to the cult. Your first sip is on us. 🍻:sip:',
+					text: welcomeText,
 				});
 			}
 		}
