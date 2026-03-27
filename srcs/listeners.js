@@ -17,13 +17,17 @@ function registerListeners(app) {
 				const welcomeFilePath = path.join(__dirname, 'files', 'welcome_sip.mp4');
 				if (fs.existsSync(welcomeFilePath)) {
 					try {
-						await client.files.upload({
-							channels: event.channel,
-							file: fs.createReadStream(welcomeFilePath),
-							filename: 'welcome_sip.mp4',
-							title: 'Welcome sip',
+						await client.files.uploadV2({
+							channel_id: event.channel,
 							initial_comment: welcomeText,
 							thread_ts: event.ts,
+							file_uploads: [
+								{
+									file: fs.createReadStream(welcomeFilePath),
+									filename: 'welcome_sip.mp4',
+									title: 'Welcome sip',
+								},
+							],
 						});
 						return;
 					} catch (err) {
