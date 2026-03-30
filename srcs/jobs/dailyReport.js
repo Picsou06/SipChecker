@@ -150,11 +150,13 @@ async function buildContent({ summary, firstDrinker, top3, shame }, dateStr, cli
 		const shameDate = new Date(`${dateStr}T00:00:00Z`);
 		shameDate.setUTCDate(shameDate.getUTCDate() - 1);
 		const shameDateStr = shameDate.toISOString().slice(0, 10);
-		const shameLines = await Promise.all(shame.map(async row => {
+		const shameUsers = await Promise.all(shame.map(async row => {
 			const name = await formatUser(row.user_id, client);
 			const lostStreak = await getStreakForDate(row.user_id, shameDateStr);
-			return `- ${name} · 💔 ${lostStreak}`;
+			return { name, lostStreak };
 		}));
+		shameUsers.sort((a, b) => b.lostStreak - a.lostStreak);
+		const shameLines = shameUsers.map(user => `- ${user.name} · 💔 ${user.lostStreak}`);
 		md += shameLines.join('\n') + '\n';
 	}
 
