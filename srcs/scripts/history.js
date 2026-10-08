@@ -54,20 +54,75 @@ async function processMessage(msg, totalMessages, totalReactions) {
 	return { totalMessages, totalReactions };
 }
 
+// ─── Arguments CLI ───────────────────────────────────────────────────────────
+
+function parseArgs(argv) {
+	const args = argv.slice(2);
+
+	if (args[0] === 'up') return { mode: 'up' };
+
+	const idx = args.findIndex(a => a === '--days' || a === '-d' || a.startsWith('--days='));
+	if (idx !== -1) {
+		const raw = args[idx].includes('=') ? args[idx].split('=')[1] : args[idx + 1];
+		const days = parseInt(raw, 10);
+		if (!Number.isFinite(days) || days <= 0) {
+			throw new Error(`Valeur de --days invalide : "${raw}"`);
+		}
+		return { mode: 'days', days };
+	}
+
+	return { mode: 'full' };
+}
+
+// Dernier message_id (ts Slack) déjà connu en base, tous types confondus
+async function getLastSavedTs() {
+	const [rows] = await pool.execute(
+		"SELECT message_id FROM sip_events WHERE message_id != '' ORDER BY message_id DESC LIMIT 1"
+	);
+	return rows[0]?.message_id || null;
+}
+
+// Détermine le ts `oldest` à partir duquel démarrer la récupération (undefined = historique complet)
+async function resolveOldest(opts) {
+	if (opts.mode === 'days') {
+		const oldest = (Date.now() / 1000 - opts.days * 86400).toFixed(6);
+		console.log(`📅 Récupération des sips des ${opts.days} derniers jours (depuis le ${tsToDatetime(oldest)})...`);
+		return oldest;
+	}
+
+	if (opts.mode === 'up') {
+		const lastTs = await getLastSavedTs();
+		if (!lastTs) {
+			console.log('ℹ️  Aucun sip en base, bascule sur une récupération complète.');
+			return undefined;
+		}
+		console.log(`🔄 Mode incrémental : récupération depuis le dernier sip enregistré (${tsToDatetime(lastTs)})...`);
+		return lastTs;
+	}
+
+	return undefined;
+}
+
+// ─── Récupération ────────────────────────────────────────────────────────────
+
 async function run() {
+	const opts = parseArgs(process.argv);
+	const oldest = await resolveOldest(opts);
+
 	let cursor;
 	let totalMessages = 0;
 	let totalReactions = 0;
 	let pages = 0;
 	const threadTimestamps = [];
 
-	console.log(`📥 Récupération de tout l'historique du channel ${CHANNEL}...`);
+	console.log(`📥 Récupération de ${oldest ? "l'historique récent" : "tout l'historique"} du channel ${CHANNEL}...`);
 
 	do {
 		const res = await client.conversations.history({
 			channel: CHANNEL,
 			limit: 200,
 			cursor,
+			...(oldest ? { oldest } : {}),
 		});
 
 		pages++;
