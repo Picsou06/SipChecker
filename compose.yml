@@ -1,0 +1,17 @@
+services:
+  sipchecker:
+    build: ./srcs
+    image: sipchecker:local
+    container_name: sipchecker
+    restart: unless-stopped
+    env_file: ./srcs/.env
+    environment:
+      TZ: UTC
+    ports:
+      # Caddy relaie https://picsou06.fr/slack/... vers ce port
+      - "127.0.0.1:3851:3851"
+    networks: [db]
+
+networks:
+  db:
+    external: true
