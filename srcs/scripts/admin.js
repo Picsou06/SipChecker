@@ -2,7 +2,7 @@ require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') }
 const readline = require('readline');
 const { WebClient } = require('@slack/web-api');
 const { pool } = require('../db');
-const { getDailyStats, buildContent } = require('../jobs/dailyReport');
+const { getDailyStats, buildContent, refreshCanvas } = require('../jobs/dailyReport');
 
 const client = new WebClient(process.env.SLACK_BOT_TOKEN);
 
@@ -139,18 +139,14 @@ async function sendReport() {
 	console.log(content.markdown);
 
 	console.log(hr());
-	const confirm = (await ask('  Envoyer ce rapport dans le canvas ? (o/n) : ')).trim().toLowerCase();
+	const confirm = (await ask('  Régénérer le canvas (rapports jusqu\'à hier, dans la limite de taille) ? (o/n) : ')).trim().toLowerCase();
 	if (confirm !== 'o') {
 		console.log('  Annulé.');
 		return;
 	}
 
-	await client.canvases.edit({
-		canvas_id: process.env.CANEVAS_LOGS,
-		changes: [{ operation: 'insert_at_start', document_content: content }],
-	});
-
-	console.log(`  ✅ Compte rendu du ${dateStr} envoyé dans le canvas.`);
+	const r = await refreshCanvas(client, yesterday);
+	console.log(`  ✅ Canvas régénéré : ${r.days} jours, du ${r.from} au ${r.to} (${r.bytes} octets).`);
 }
 
 // ─── Option 3 : Sip information ─────────────────────────────────────────────
