@@ -3,6 +3,7 @@
 //   node scripts/backfill-canvas.js            -> écrit dans le canvas
 //   node scripts/backfill-canvas.js --dry-run  -> affiche seulement les jours et la taille
 //   node scripts/backfill-canvas.js --dry-run --max-bytes 200000 --until 2026-10-07
+//   node scripts/backfill-canvas.js --sans-mentions  -> écrit sans aucune mention (aucune notification : essais)
 require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
 const { WebClient } = require('@slack/web-api');
 const { buildCanvasReports, refreshCanvas, CANVAS_MAX_BYTES } = require('../jobs/dailyReport');
@@ -12,6 +13,7 @@ const client = new WebClient(process.env.SLACK_BOT_TOKEN);
 const args = process.argv.slice(2);
 const option = (name) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : undefined; };
 const dryRun = args.includes('--dry-run');
+const mentions = !args.includes('--sans-mentions');
 const maxBytes = Number(option('--max-bytes')) || CANVAS_MAX_BYTES;
 const until = option('--until') || new Date(Date.now() - 864e5).toISOString().slice(0, 10);
 
@@ -22,13 +24,13 @@ async function run() {
 	}
 
 	if (dryRun) {
-		const reports = await buildCanvasReports(client, until, maxBytes);
+		const reports = await buildCanvasReports(client, until, maxBytes, { mentions });
 		const bytes = reports.reduce((n, r) => n + r.size, 0);
 		const sizes = reports.map(r => r.size);
 		console.log(`🔎 ${reports.length} jours, du ${reports[reports.length - 1].dateStr} au ${reports[0].dateStr}, ${bytes} octets (limite ${maxBytes})`);
 		console.log(`   taille d'un jour : min ${Math.min(...sizes)}, max ${Math.max(...sizes)}, moyenne ${Math.round(bytes / reports.length)} octets`);
 	} else {
-		const r = await refreshCanvas(client, until);
+		const r = await refreshCanvas(client, until, { mentions });
 		console.log(`✅ Canvas régénéré : ${r.days} jours, du ${r.from} au ${r.to}, ${r.bytes} octets.`);
 	}
 	await pool.end();
