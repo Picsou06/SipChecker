@@ -24,10 +24,9 @@ async function resolveDisplayName(client, userId) {
 // cache : Map partagée pendant une génération, pour ne pas rappeler users.info pour chaque jour.
 async function formatUser(userId, client, { ping = true, cache } = {}) {
 	if (ping && await getUserPingEnabled(userId)) return `![](@${userId})`;
-	if (cache?.has(userId)) return cache.get(userId);
-	const name = `@${await resolveDisplayName(client, userId)}`;
-	cache?.set(userId, name);
-	return name;
+	if (!cache) return `@${await resolveDisplayName(client, userId)}`;
+	if (!cache.has(userId)) cache.set(userId, resolveDisplayName(client, userId).then(name => `@${name}`));
+	return cache.get(userId);
 }
 
 const MEDALS = ['🥇', '🥈', '🥉'];
@@ -175,8 +174,9 @@ async function buildContent({ summary, firstDrinker, top3, shame }, dateStr, cli
 // du plus récent au plus ancien, tant que la taille reste sous CANVAS_MAX_BYTES. Les jours manquants
 // sont ainsi recréés depuis la base et les plus anciens disparaissent du canvas (pas de la base).
 // Les jours ne font pas tous la même taille : le nombre de jours gardés varie.
+// Slack limite aussi chaque requête (refus vers 45 Ko) : le canvas est écrit en plusieurs morceaux.
 const CANVAS_MAX_BYTES = Number(process.env.CANVAS_MAX_BYTES) || 150_000; // 165 rapports (~165 Ko) tenaient, le 166e a été refusé
-const MAX_ATTEMPTS = 8;
+const CANVAS_CHUNK_BYTES = 25_000;
 
 function previousDay(dateStr) {
 	const d = new Date(`${dateStr}T00:00:00Z`);
@@ -205,23 +205,53 @@ async function buildCanvasReports(client, lastDateStr, maxBytes = CANVAS_MAX_BYT
 	return reports;
 }
 
-// Remplace tout le contenu du canvas. Si Slack le trouve encore trop gros, retire 10 % des jours les plus anciens et réessaie.
-async function writeCanvas(client, reports) {
-	let count = reports.length;
+async function countReportHeaders(client) {
+	const res = await client.canvases.sections.lookup({
+		canvas_id: process.env.CANEVAS_LOGS,
+		criteria: { section_types: ['h2'], contains_text: 'Report' },
+	});
+	return res.sections.length;
+}
+
+// Une modification du canvas. Slack renvoie parfois canvas_editing_failed alors que la modification
+// est appliquée : on compte les rapports présents pour savoir s'il faut la renvoyer.
+async function editCanvas(client, operation, reports, expectedReports) {
+	const document_content = { type: 'markdown', markdown: reports.map(r => r.markdown).join('\n') };
 	for (let attempt = 1; ; attempt++) {
-		const kept = reports.slice(0, count);
 		try {
-			await client.canvases.edit({
-				canvas_id: process.env.CANEVAS_LOGS,
-				changes: [{ operation: 'replace', document_content: { type: 'markdown', markdown: kept.map(r => r.markdown).join('\n') } }],
-			});
-			return kept;
+			await client.canvases.edit({ canvas_id: process.env.CANEVAS_LOGS, changes: [{ operation, document_content }] });
+			return;
 		} catch (err) {
-			if (err.data?.error !== 'canvas_too_large' || count <= 1 || attempt >= MAX_ATTEMPTS) throw err;
-			count = Math.max(1, Math.floor(count * 0.9));
-			console.warn(`⚠️ Canvas encore trop gros, nouvel essai avec ${count} jours`);
+			if (err.data?.error !== 'canvas_editing_failed' || attempt >= 2) throw err;
+			await new Promise(resolve => setTimeout(resolve, 3000));
+			if (await countReportHeaders(client) === expectedReports) return;
 		}
 	}
+}
+
+// Remplace le canvas par le rapport le plus récent, puis ajoute les jours plus anciens à la fin, par morceaux.
+// Si Slack refuse un morceau (canvas trop gros), les jours restants, plus anciens, ne sont pas écrits.
+async function writeCanvas(client, reports) {
+	await editCanvas(client, 'replace', reports.slice(0, 1), 1);
+	let written = 1;
+	while (written < reports.length) {
+		const chunk = [];
+		let bytes = 0;
+		for (const r of reports.slice(written)) {
+			if (chunk.length > 0 && bytes + r.size > CANVAS_CHUNK_BYTES) break;
+			chunk.push(r);
+			bytes += r.size;
+		}
+		try {
+			await editCanvas(client, 'insert_at_end', chunk, written + chunk.length);
+		} catch (err) {
+			if (err.data?.error !== 'canvas_too_large') throw err;
+			console.warn(`⚠️ Canvas plein : ${written} jours écrits, les ${reports.length - written} plus anciens sont abandonnés`);
+			break;
+		}
+		written += chunk.length;
+	}
+	return reports.slice(0, written);
 }
 
 async function refreshCanvas(client, lastDateStr) {
