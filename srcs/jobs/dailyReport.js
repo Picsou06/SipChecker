@@ -175,12 +175,12 @@ async function buildContent({ summary, firstDrinker, top3, shame }, dateStr, cli
 // sont ainsi recréés depuis la base et les plus anciens disparaissent du canvas (pas de la base).
 // Les jours ne font pas tous la même taille : le nombre de jours gardés varie.
 // Slack limite aussi chaque requête (refus vers 45 Ko) : le canvas est écrit en plusieurs morceaux.
-// Une modification envoyée avant que Slack ait fini d'appliquer la précédente est refusée (canvas_too_large) :
-// pause entre deux modifications.
+// Slack refuse aussi temporairement (canvas_too_large) des modifications trop rapprochées, surtout après le
+// remplacement d'un gros canvas : pause entre deux modifications, puis attentes croissantes avant d'abandonner.
 const CANVAS_MAX_BYTES = Number(process.env.CANVAS_MAX_BYTES) || 150_000; // 165 rapports (~165 Ko) tenaient, le 166e a été refusé
 const CANVAS_CHUNK_BYTES = 25_000;
 const CANVAS_EDIT_PAUSE_MS = 4_000;
-const CANVAS_RETRY_PAUSE_MS = 15_000;
+const CANVAS_RETRY_DELAYS_MS = [30_000, 60_000, 120_000];
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 function previousDay(dateStr) {
@@ -240,7 +240,7 @@ async function editCanvas(client, operation, reports, expectedReports) {
 async function writeCanvas(client, reports) {
 	await editCanvas(client, 'replace', reports.slice(0, 1), 1);
 	let written = 1;
-	let retried = false;
+	let retries = 0;
 	while (written < reports.length) {
 		await sleep(CANVAS_EDIT_PAUSE_MS);
 		const chunk = [];
@@ -254,16 +254,14 @@ async function writeCanvas(client, reports) {
 			await editCanvas(client, 'insert_at_end', chunk, written + chunk.length);
 		} catch (err) {
 			if (err.data?.error !== 'canvas_too_large') throw err;
-			if (!retried) {
-				// peut-être une modification précédente pas encore appliquée : un second essai, plus tard
-				retried = true;
-				await sleep(CANVAS_RETRY_PAUSE_MS);
+			if (retries < CANVAS_RETRY_DELAYS_MS.length) {
+				await sleep(CANVAS_RETRY_DELAYS_MS[retries++]);
 				continue;
 			}
 			console.warn(`⚠️ Canvas plein : ${written} jours écrits, les ${reports.length - written} plus anciens sont abandonnés`);
 			break;
 		}
-		retried = false;
+		retries = 0;
 		written += chunk.length;
 	}
 	return reports.slice(0, written);
